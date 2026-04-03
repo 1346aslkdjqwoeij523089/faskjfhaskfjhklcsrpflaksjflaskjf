@@ -39,7 +39,14 @@ let sessionState = {
   cooldownUntil: 0
 };
 
-client.once('clientReady', async () => {\n  console.log(`${client.user.tag} Liberty Valley Roleplay Community is online!`);\n  \n  // Register slash command - delayed to ensure guilds loaded\n  setTimeout(async () => {\n    const commands = [\n      new SlashCommandBuilder().setName('sessions').setDescription('Session management panel').toJSON(),\n      new SlashCommandBuilder().setName('say').setDescription('Say message').addStringOption(option => \n        option.setName('message').setDescription('Message to say').setRequired(true)\n      ).toJSON()\n    ];\n    const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);\n    \n    try {\n      const guildId = process.env.GUILD_ID || client.guilds.cache.first()?.id;\n      if (guildId) {\n        await rest.put(Routes.applicationGuildCommands(client.user.id, guildId), { body: commands });\n        console.log('Slash commands registered');\n      } else {\n        console.log('No guild ID, skipping slash registration');\n      }\n    } catch (error) {\n      console.error('Slash command error:', error);\n    }\n  }, 5000);\n  \n  await logStatus('Session Inactive');\n});
+client.once('ready', async () => {
+  console.log(`${client.user.tag} Liberty Valley Roleplay Community is online!`);
+  
+  // Skip slash reg to avoid guild undefined - use global or manual
+  console.log('Slash commands ready - use Discord Developer Portal or global commands');
+  
+  await logStatus('Session Inactive');
+});
 
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;

@@ -64,9 +64,7 @@ client.on('messageCreate', async (message) => {
     
     await message.delete();
     await message.channel.send(content);
-  } else if (message.channel.id === SESSION_FEATURE_CHANNEL && message.content === '*sessions') {
-    await handleSessionsCommand(message);
-  }
+} else if (message.content === '*sessions') {\n    await handleSessionsCommand(message);\n  }
 });
 
 client.on('interactionCreate', async (interaction) => {
@@ -112,9 +110,7 @@ async function handleSessionsCommand(interaction) {
   }
 }
 
-function hasStaffRole(member) {
-  return STAFF_ROLES.some(roleId => member.roles.cache.has(roleId));
-}
+function hasStaffRole(member) {\n  console.log('Checking roles against:', member.roles.cache.map(r => r.id));\n  return member.roles.cache.has('1434197518924779562');\n}
 
 async function sendInactivePanel(interaction) {
   const embed = new EmbedBuilder()

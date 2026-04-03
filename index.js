@@ -41,16 +41,13 @@ let sessionState = {
 
 client.once('ready', async () => {
   console.log(`${client.user.tag} Liberty Valley Roleplay Community is online!`);
-  
-  // Skip slash reg to avoid guild undefined - use global or manual
   console.log('Slash commands ready - use Discord Developer Portal or global commands');
-  
   await logStatus('Session Inactive');
 });
 
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
-  
+
   if (message.content.startsWith('*say ')) {
     const content = message.content.slice(5).trim();
     if (!content) return;
@@ -58,13 +55,15 @@ client.on('messageCreate', async (message) => {
     const member = message.member;
     if (!member.roles.cache.has(SAY_ROLE)) {
       const reply = await message.reply({ content: 'You are not permitted to use the say command!', ephemeral: true }).catch(() => {});
-      setTimeout(() => reply.delete().catch(() => {}), 10000);
+      setTimeout(() => reply?.delete().catch(() => {}), 10000);
       return;
     }
     
     await message.delete();
     await message.channel.send(content);
-} else if (message.content === '*sessions') {\n    await handleSessionsCommand(message);\n  }
+  } else if (message.content === '*sessions') {
+    await handleSessionsCommand(message);
+  }
 });
 
 client.on('interactionCreate', async (interaction) => {
@@ -110,12 +109,29 @@ async function handleSessionsCommand(interaction) {
   }
 }
 
-function hasStaffRole(member) {\n  console.log('Checking roles against:', member.roles.cache.map(r => r.id));\n  return member.roles.cache.has('1434197518924779562');\n}
+function hasStaffRole(member) {
+  console.log('Checking roles against:', member.roles.cache.map(r => r.id));
+  for (const roleId of STAFF_ROLES) {
+    if (member.roles.cache.has(roleId)) {
+      return true;
+    }
+  }
+  return false;
+}
 
 async function sendInactivePanel(interaction) {
   const embed = new EmbedBuilder()
     .setTitle('𝐒𝐞𝐬𝐬𝐢𝐨𝐧 𝐌𝐚𝐧𝐚𝐠𝐞𝐦𝐞𝐧𝐭 𝐏𝐚𝐧𝐞𝐥・𝐋𝐕𝐑𝐏𝐂')
-    .setDescription(`Welcome to the Session Management Panel <:LVRPC:1489435879645646858>, <@${interaction.user.id}>!\n\n- As you are Junior Administrator+, you have the ability to configure sessions accordingly. Please refer below for more information:\n**Session Status: Inactive 🔴**\n\`Shutdown By:\` N/A\n\`Shutdown At:\` N/A\n\`Shutdown Reason:\` N/A\n**Session Configuration 🛠️**\n\`1.\` Initiate a Session Vote\n\`2.\` Start a New Session`)
+    .setDescription(`Welcome to the Session Management Panel <:LVRPC:1489435879645646858>, <@${interaction.user.id}>!
+
+- As you are Junior Administrator+, you have the ability to configure sessions accordingly. Please refer below for more information:
+**Session Status: Inactive 🔴**
+\`Shutdown By:\` N/A
+\`Shutdown At:\` N/A
+\`Shutdown Reason:\` N/A
+**Session Configuration 🛠️**
+\`1.\` Initiate a Session Vote
+\`2.\` Start a New Session`)
     .setColor(0xFF0000)
     .setThumbnail(AVATAR);
   
@@ -182,7 +198,8 @@ async function handleVoteMessage(user, channelId) {
   
   const embed = new EmbedBuilder()
     .setTitle('Session Vote')
-    .setDescription(`A session vote has been conducted by <@${user.id}>. To participate in the session, ensure that you vote with ✅ below to count your vote!\n**Current Votes:** \`0/${sessionState.voteTarget}\``)
+    .setDescription(`A session vote has been conducted by <@${user.id}>. To participate in the session, ensure that you vote with ✅ below to count your vote!
+**Current Votes:** \`0/${sessionState.voteTarget}\``)
     .setColor(0x0000FF);
   
   const voteMsg = await channel.send({ content: `<@&${VOTER_ROLE}>`, embeds: [embed] });
@@ -213,7 +230,6 @@ async function handleVoteMessage(user, channelId) {
   
   collector.on('end', () => {
     if (sessionState.active) return;
-    // Cancel vote if no yes
     voteMsg.delete().catch(() => {});
   });
 }
@@ -222,51 +238,53 @@ async function clearChannel(channel) {
   let fetched;
   do {
     fetched = await channel.messages.fetch({ limit: 100 });
-    const toDelete = fetched.filter(m => !m.pinned && !m.author.bot);
-    await channel.bulkDelete(toDelete, true).catch(() => {});
+    const toDelete = fetched.filter(m => !m.pinned && m.author.bot === false);
+    if (toDelete.size > 0) {
+      await channel.bulkDelete(toDelete, true).catch(() => {});
+    }
   } while (fetched.size >= 100);
 }
 
-async function pollVotes(voteMsg) {
-  const pollInterval = setInterval(async () => {
+function pollVotes(voteMsg) {
+  const pollId = setInterval(async () => {
     try {
       const msg = await voteMsg.channel.messages.fetch(voteMsg.id);
       const reaction = msg.reactions.cache.get('✅');
+      if (!reaction) return;
+      
       const users = await reaction.users.fetch();
       const count = users.filter(u => !u.bot).size;
       
-      const newDesc = msg.embeds[0].description.replace(/Current Votes: \`[^`]+\`/ , `Current Votes: \`${count}/${sessionState.voteTarget}\``);
+      const currentVotesMatch = /Current Votes: \`[^`]+\`/;
+      const newDesc = msg.embeds[0].description.replace(currentVotesMatch, `Current Votes: \`${count}/${sessionState.voteTarget}\``);
       const embed = EmbedBuilder.from(msg.embeds[0]).setDescription(newDesc);
       
       await msg.edit({ embeds: [embed] });
       
       if (count >= sessionState.voteTarget) {
-        clearInterval(pollInterval);
+        clearInterval(pollId);
         sessionState.voters = new Set(users.filter(u => !u.bot).keys());
-        // Trigger start prompt already in handleVoteMessage
       }
     } catch (e) {
-      clearInterval(pollInterval);
+      clearInterval(pollId);
     }
   }, 3000);
+  return pollId;
 }
 
 async function handleSessionStart(channel) {
   const embed = await getSessionStartEmbed();
   const startMsg = await channel.send({ content: `<@&${VOTER_ROLE}>`, embeds: [embed] });
   
-  // Voters notification
-  const votersMentions = Array.from(sessionState.voters).slice(0, 10).map(id => `<@${id}>`).join('\n> - ');
+  const votersMentions = Array.from(sessionState.voters).slice(0, 10).map(id => `<@${id}>`).join('\\n> - ');
   const votersChannel = client.channels.cache.get(VOTERS_CHANNEL);
   await votersChannel.send({
-    content: `**Session Management**\n\`\`\`As you have voted in-game, you must join in the next 15 minutes or you will face punishment.\`\`\`\n**Session Voters** -> Head to <#${SESSION_FEATURE_CHANNEL}> for Information!\n> - ${votersMentions}`,
+    content: `**Session Management**\\n\\`\\`\\`As you have voted in-game, you must join in the next 15 minutes or you will face punishment.\\n\\`\\`\\`\\n**Session Voters** -> Head to <#${SESSION_FEATURE_CHANNEL}> for Information!\\n> - ${votersMentions}`,
     allowedMentions: { parse: ['users'] }
   });
   
-  // Delete vote msg
   client.channels.cache.get(SESSION_FEATURE_CHANNEL).messages.delete(sessionState.voteMsgId).catch(() => {});
   
-  // Update embed every 5 mins
   cron.schedule('*/5 * * * *', async () => {
     if (sessionState.active && startMsg.editable) {
       const newEmbed = await getSessionStartEmbed();
@@ -283,7 +301,12 @@ async function getSessionStartEmbed() {
   
   return new EmbedBuilder()
     .setTitle('Session Started!')
-    .setDescription(`A session has officially began after enough votes!\nVoters notified in <#${VOTERS_CHANNEL}>.\n\n**In-Game:** \`${players}/39\`\n**In-Queue:** \`LVRPCOGG\`\n**Staff On-Duty:** \`${staff}\``)
+    .setDescription(`A session has officially began after enough votes!
+Voters notified in <#${VOTERS_CHANNEL}>.
+
+**In-Game:** \`${players}/39\`
+**In-Queue:** \`LVRPCOGG\`
+**Staff On-Duty:** \`${staff}\``)
     .setColor(0x00FF00);
 }
 
@@ -302,17 +325,20 @@ async function getPlayerCount() {
 async function getStaffCount() {
   const guild = client.guilds.cache.first();
   if (!guild) return 0;
-  const role = guild.roles.cache.get(STAFF_ROLE);
-  return role ? role.members.cache.size : 0;
+  let staffCount = 0;
+  for (const roleId of STAFF_ROLES) {
+    const role = guild.roles.cache.get(roleId);
+    if (role) staffCount += role.members.cache.size;
+  }
+  return staffCount;
 }
 
 function startSessionMonitors() {
-  // Low player alert every min
-  cron.schedule('0 * * * * *', async () => { // every min
+  cron.schedule('* * * * *', async () => {
     if (!sessionState.active) return;
     const players = await getPlayerCount();
     if (players < 6 && !sessionState.lowAlertSent) {
-      sessionState.starter.send('The session is running low (<6 players). Use *sessions to boost.').catch(() => {});
+      sessionState.starter?.send('The session is running low (<6 players). Use *sessions to boost.').catch(() => {});
       sessionState.lowAlertSent = true;
       const channel = client.channels.cache.get(SESSION_FEATURE_CHANNEL);
       channel.send({
@@ -321,18 +347,17 @@ function startSessionMonitors() {
           .setTitle('Session Boost Needed')
           .setDescription('The session is running low on players. Please join (code: `LVRPCOGG`)!')
           .setColor(0xFFA500)]
-      });
+      }).catch(() => {});
     } else if (players >= 6) {
       sessionState.lowAlertSent = false;
     }
     
     if (players >= 39) {
       const channel = client.channels.cache.get(SESSION_FEATURE_CHANNEL);
-      channel.send('**Session Full!** There may be a queue in-game.');
+      channel.send('**Session Full!** There may be a queue in-game.').catch(() => {});
     }
   });
   
-  // 2hr shutdown check
   sessionState.checkTimeout = setTimeout(handleSessionCheck, 7200000);
 }
 
@@ -340,14 +365,14 @@ async function handleSessionCheck() {
   if (!sessionState.starter) return;
   
   const dmChannel = await sessionState.starter.createDM();
-  dmChannel.send('**Session Check (2hr):** Is the session still running? Reply "Yes" or "No" within 1 hour.');
+  await dmChannel.send('**Session Check (2hr):** Is the session still running? Reply "Yes" or "No" within 1 hour.');
   
   const filter = m => m.author.id === sessionState.starter.id;
   const collector = dmChannel.createMessageCollector({ filter, time: 3600000 });
   
   collector.on('collect', async msg => {
     if (msg.content.toLowerCase() === 'yes') {
-      startSessionMonitors(); // Reset timer
+      startSessionMonitors();
     } else {
       await shutdownSession('Starter');
     }
@@ -356,12 +381,10 @@ async function handleSessionCheck() {
   
   collector.on('end', () => {
     if (sessionState.active) {
-      // Fallback to mod role
       const guild = client.guilds.cache.first();
-      const modRole = guild.roles.cache.get('1479856722796613733');
+      const modRoleId = '1479856722796613733';
+      const modRole = guild?.roles.cache.get(modRoleId);
       if (modRole && modRole.members.size > 0) {
-        const mod = modRole.members.first();
-        // Simplified: auto shutdown after 10min
         setTimeout(() => shutdownSession('Fallback timeout'), 600000);
       } else {
         shutdownSession('No response');
@@ -372,7 +395,7 @@ async function handleSessionCheck() {
 
 async function shutdownSession(reason) {
   sessionState.active = false;
-  sessionState.cooldownUntil = Date.now() + 3600000; // 1hr cooldown
+  sessionState.cooldownUntil = Date.now() + 3600000;
   await logStatus(`Session Inactive - Reason: ${reason}`);
   
   clearTimeout(sessionState.checkTimeout);
@@ -383,14 +406,22 @@ async function shutdownSession(reason) {
     .setTitle('Session Shutdown')
     .setDescription('A session has been shutdown. Thank you for joining!')
     .setColor(0x808080);
-  channel.send({ embeds: [embed] });
+  channel?.send({ embeds: [embed] });
 }
 
-// Stub functions for completeness
-async function handleSelectMenu(interaction) {}
-async function handleButton(interaction) {}
 async function handleDirectStart(interaction) {
-  interaction.followUp({ content: 'Direct start not implemented yet.', ephemeral: true });
+  sessionState.active = true;
+  sessionState.starter = interaction.user;
+  sessionState.startTime = Date.now();
+  await logStatus('Session Active - Direct Start');
+  const channel = client.channels.cache.get(SESSION_FEATURE_CHANNEL);
+  await handleSessionStart(channel);
+  await interaction.followUp({ content: 'Session started directly!', ephemeral: true });
+}
+
+async function handleSelectMenu(interaction) {
+  // Handled in sendInactivePanel collector
+  await interaction.deferUpdate();
 }
 
 async function logStatus(status) {
@@ -401,7 +432,7 @@ async function logStatus(status) {
 }
 
 client.on('error', console.error);
-process.on('unhandledRejection', () => {});
-process.on('uncaughtException', () => {});
+process.on('unhandledRejection', console.error);
+process.on('uncaughtException', console.error);
 
 client.login(process.env.DISCORD_TOKEN);

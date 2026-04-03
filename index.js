@@ -203,7 +203,7 @@ async function handleVoteMessage(user, channelId) {
   collector.on('end', () => {
     if (sessionState.active) return;
     // Cancel vote if no yes
-    await voteMsg.delete().catch(() => {});
+    voteMsg.delete().catch(() => {});
   });
 }
 

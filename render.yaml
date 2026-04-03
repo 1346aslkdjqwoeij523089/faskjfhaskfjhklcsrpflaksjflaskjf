@@ -1,3 +1,4 @@
+
 services:
   - type: web
     name: liberty-valley-bot
@@ -8,4 +9,7 @@ services:
     envVars:
       - key: DISCORD_TOKEN
         sync: false
+      - key: ERLC_API_KEY
+        sync: false
     autoDeploy: true
+

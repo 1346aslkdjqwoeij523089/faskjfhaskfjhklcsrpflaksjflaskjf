@@ -39,34 +39,7 @@ let sessionState = {
   cooldownUntil: 0
 };
 
-client.once('ready', async () => {
-  console.log(`${client.user.tag} Liberty Valley Roleplay Community is online!`);
-  
-  // Register slash command - delayed to ensure guilds loaded
-  setTimeout(async () => {
-    const commands = [
-      new SlashCommandBuilder().setName('sessions').setDescription('Session management panel').toJSON(),
-      new SlashCommandBuilder().setName('say').setDescription('Say message').addStringOption(option => 
-        option.setName('message').setDescription('Message to say').setRequired(true)
-      ).toJSON()
-    ];
-    const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
-    
-    try {
-      const guildId = process.env.GUILD_ID || client.guilds.cache.first()?.id;
-      if (guildId) {
-        await rest.put(Routes.applicationGuildCommands(client.user.id, guildId), { body: commands });
-        console.log('Slash commands registered');
-      } else {
-        console.log('No guild ID, skipping slash registration');
-      }
-    } catch (error) {
-      console.error('Slash command error:', error);
-    }
-  }, 5000);
-  
-  await logStatus('Session Inactive');
-});
+client.once('clientReady', async () => {\n  console.log(`${client.user.tag} Liberty Valley Roleplay Community is online!`);\n  \n  // Register slash command - delayed to ensure guilds loaded\n  setTimeout(async () => {\n    const commands = [\n      new SlashCommandBuilder().setName('sessions').setDescription('Session management panel').toJSON(),\n      new SlashCommandBuilder().setName('say').setDescription('Say message').addStringOption(option => \n        option.setName('message').setDescription('Message to say').setRequired(true)\n      ).toJSON()\n    ];\n    const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);\n    \n    try {\n      const guildId = process.env.GUILD_ID || client.guilds.cache.first()?.id;\n      if (guildId) {\n        await rest.put(Routes.applicationGuildCommands(client.user.id, guildId), { body: commands });\n        console.log('Slash commands registered');\n      } else {\n        console.log('No guild ID, skipping slash registration');\n      }\n    } catch (error) {\n      console.error('Slash command error:', error);\n    }\n  }, 5000);\n  \n  await logStatus('Session Inactive');\n});
 
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;

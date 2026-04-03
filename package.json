@@ -1,8 +1,7 @@
-
 {
   "name": "liberty-valley-roleplay-bot",
   "version": "1.0.0",
-  "description": "Liberty Valley Roleplay Community Discord Bot - Session Management",
+  "description": "Liberty Valley Roleplay Community Discord Bot - Stays online for Render + UptimeRobot",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
@@ -11,10 +10,10 @@
     "discord.js": "^14.15.3",
     "express": "^4.19.2",
     "dotenv": "^16.4.5",
-    "@discordjs/builders": "^1.8.0",
-    "@discordjs/rest": "^2.0.0",
     "axios": "^1.7.7",
-    "node-cron": "^3.0.3"
+    "node-cron": "^3.0.3",
+    "@discordjs/rest": "^2.4.0",
+    "@discordjs/builders": "^1.9.0"
   },
   "engines": {
     "node": ">=18.0.0"

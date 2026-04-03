@@ -41,7 +41,33 @@ let sessionState = {
 
 client.once('ready', async () => {
   console.log(`${client.user.tag} Liberty Valley Roleplay Community is online!`);
-  console.log('Slash commands ready - use Discord Developer Portal or global commands');
+  
+  // Register slash commands for this guild
+  const guildId = '1434179947983016048';
+  const commands = [
+    new SlashCommandBuilder()
+      .setName('sessions')
+      .setDescription('Session management panel'),
+    new SlashCommandBuilder()
+      .setName('say')
+      .setDescription('Say something as bot')
+      .addStringOption(option => 
+        option.setName('message')
+          .setDescription('Message to send')
+          .setRequired(true)
+      )
+  ];
+  
+  const rest = new REST().setToken(process.env.DISCORD_TOKEN);
+  
+  try {
+    console.log('Started refreshing application (/) commands for guild.');
+    await rest.put(Routes.applicationGuildCommands(client.user.id, guildId), { body: commands });
+    console.log('Successfully reloaded guild application (/) commands.');
+  } catch (error) {
+    console.error(error);
+  }
+  
   await logStatus('Session Inactive');
 });
 

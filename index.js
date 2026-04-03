@@ -350,7 +350,7 @@ async function handleSessionCheck() {
       const modRole = guild.roles.cache.get('1479856722796613733');
       if (modRole && modRole.members.size > 0) {
         const mod = modRole.members.first();
-        const modDM = mod.createDM().catch(() => {});\n        if (modDM) modDM.send('**Fallback Session Check:** Reply "Yes" to continue, else shutdown.').catch(() => {});
+
         // Simplified: auto shutdown after 10min
         setTimeout(() => shutdownSession('Fallback timeout'), 600000);
       } else {

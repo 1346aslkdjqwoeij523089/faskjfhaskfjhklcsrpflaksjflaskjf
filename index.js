@@ -276,10 +276,10 @@ async function handleSessionStart(channel) {
   const embed = await getSessionStartEmbed();
   const startMsg = await channel.send({ content: `<@&${VOTER_ROLE}>`, embeds: [embed] });
   
-  const votersMentions = Array.from(sessionState.voters).slice(0, 10).map(id => `<@${id}>`).join('\\n> - ');
+  const votersMentions = Array.from(sessionState.voters).slice(0, 10).map(id => `<@${id}>`).join('\n> - ');
   const votersChannel = client.channels.cache.get(VOTERS_CHANNEL);
   await votersChannel.send({
-    content: `**Session Management**\\n\\`\\`\\`As you have voted in-game, you must join in the next 15 minutes or you will face punishment.\\n\\`\\`\\`\\n**Session Voters** -> Head to <#${SESSION_FEATURE_CHANNEL}> for Information!\\n> - ${votersMentions}`,
+    content: '**Session Management**\n```\nAs you have voted in-game, you must join in the next 15 minutes or you will face punishment.\n```\n**Session Voters** -> Head to <#' + SESSION_FEATURE_CHANNEL + '> for Information!\n> - ' + votersMentions,
     allowedMentions: { parse: ['users'] }
   });
   
@@ -301,12 +301,7 @@ async function getSessionStartEmbed() {
   
   return new EmbedBuilder()
     .setTitle('Session Started!')
-    .setDescription(`A session has officially began after enough votes!
-Voters notified in <#${VOTERS_CHANNEL}>.
-
-**In-Game:** \`${players}/39\`
-**In-Queue:** \`LVRPCOGG\`
-**Staff On-Duty:** \`${staff}\``)
+    .setDescription(`A session has officially began after enough votes!\nVoters notified in <#${VOTERS_CHANNEL}>.\n\n**In-Game:** \`${players}/39\`\n**In-Queue:** \`LVRPCOGG\`\n**Staff On-Duty:** \`${staff}\``)
     .setColor(0x00FF00);
 }
 
@@ -420,7 +415,6 @@ async function handleDirectStart(interaction) {
 }
 
 async function handleSelectMenu(interaction) {
-  // Handled in sendInactivePanel collector
   await interaction.deferUpdate();
 }
 

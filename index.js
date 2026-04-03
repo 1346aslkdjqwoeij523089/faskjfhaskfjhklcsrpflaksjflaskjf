@@ -1,4 +1,3 @@
-
 const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, PermissionFlagsBits, SlashCommandBuilder } = require('discord.js');
 const { REST } = require('@discordjs/rest');
 const { Routes } = require('@discordjs/builders');
@@ -22,7 +21,8 @@ const SESSION_FEATURE_CHANNEL = '1475673336381177960';
 const LOG_CHANNEL = '1489446890411130942';
 const VOTERS_CHANNEL = '1434195493382127688';
 const STAFF_ROLE = '1434618549791363272';
-const SAY_ROLE = '1434197420991844528';\nconst STAFF_ROLES = ['1434197420991844528', '1489387863819681935', '1434197433168035890', '1479856722796613733', '1476318904618844204', '1434197451056873512', '1434197453124669510', '1434197454349402112', '1434197518924779562'];
+const SAY_ROLE = '1434197420991844528';
+const STAFF_ROLES = ['1434197420991844528', '1489387863819681935', '1434197433168035890', '1479856722796613733', '1476318904618844204', '1434197451056873512', '1434197453124669510', '1434197454349402112', '1434197518924779562'];
 const AVATAR = 'https://cdn.discordapp.com/attachments/1489444813836390580/1489444844324524103/3521_1.png';
 const USERNAME = 'LVRPC Sessions';
 const VOTER_ROLE = '1472590455739777137';
@@ -42,25 +42,70 @@ let sessionState = {
 client.once('ready', async () => {
   console.log(`${client.user.tag} Liberty Valley Roleplay Community is online!`);
   
-  // Register slash command
-  const commands = [\n    new SlashCommandBuilder().setName('sessions').setDescription('Session management panel').toJSON(),\n    new SlashCommandBuilder().setName('say').setDescription('Say message').addStringOption(option => option.setName('message').setDescription('Message to say').setRequired(true)).toJSON()\n  ];\n
-  const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
-  
-  try {
-    const guildId = client.guilds.cache.first().id;
-    await rest.put(Routes.applicationGuildCommands(client.user.id, guildId), { body: commands });
-    console.log('Slash command registered');
-  } catch (error) {
-    console.error('Slash command error:', error);
-  }
+  // Register slash command - delayed to ensure guilds loaded
+  setTimeout(async () => {
+    const commands = [
+      new SlashCommandBuilder().setName('sessions').setDescription('Session management panel').toJSON(),
+      new SlashCommandBuilder().setName('say').setDescription('Say message').addStringOption(option => 
+        option.setName('message').setDescription('Message to say').setRequired(true)
+      ).toJSON()
+    ];
+    const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
+    
+    try {
+      const guildId = process.env.GUILD_ID || client.guilds.cache.first()?.id;
+      if (guildId) {
+        await rest.put(Routes.applicationGuildCommands(client.user.id, guildId), { body: commands });
+        console.log('Slash commands registered');
+      } else {
+        console.log('No guild ID, skipping slash registration');
+      }
+    } catch (error) {
+      console.error('Slash command error:', error);
+    }
+  }, 5000);
   
   await logStatus('Session Inactive');
 });
 
-client.on('messageCreate', async (message) => {\n  if (message.author.bot) return;\n  \n  if (message.content.startsWith('*say ')) {\n    const content = message.content.slice(5).trim();\n    if (!content) return;\n    \n    const member = message.member;\n    if (!member.roles.cache.has(SAY_ROLE)) {\n      const reply = await message.reply({ content: 'You are not permitted to use the say command!', ephemeral: true }).catch(() => {});\n      setTimeout(() => reply.delete().catch(() => {}), 10000);\n      return;\n    }\n    \n    await message.delete();\n    await message.channel.send(content);\n  } else if (message.channel.id === SESSION_FEATURE_CHANNEL && message.content === '*sessions') {\n    await handleSessionsCommand(message);\n  }\n});
+client.on('messageCreate', async (message) => {
+  if (message.author.bot) return;
+  
+  if (message.content.startsWith('*say ')) {
+    const content = message.content.slice(5).trim();
+    if (!content) return;
+    
+    const member = message.member;
+    if (!member.roles.cache.has(SAY_ROLE)) {
+      const reply = await message.reply({ content: 'You are not permitted to use the say command!', ephemeral: true }).catch(() => {});
+      setTimeout(() => reply.delete().catch(() => {}), 10000);
+      return;
+    }
+    
+    await message.delete();
+    await message.channel.send(content);
+  } else if (message.channel.id === SESSION_FEATURE_CHANNEL && message.content === '*sessions') {
+    await handleSessionsCommand(message);
+  }
+});
 
 client.on('interactionCreate', async (interaction) => {
-if (interaction.isChatInputCommand()) {\n    if (interaction.commandName === 'sessions') {\n      await handleSessionsCommand(interaction);\n    } else if (interaction.commandName === 'say') {\n      const member = interaction.member;\n      if (!member.roles.cache.has(SAY_ROLE)) {\n        return interaction.reply({ content: 'You are not permitted to use the say command!', ephemeral: true });\n      }\n      const content = interaction.options.getString('message');\n      await interaction.deferReply({ ephemeral: true });\n      await interaction.channel.send(content);\n      await interaction.editReply({ content: 'Message sent!' });\n    }\n  } else if (interaction.isStringSelectMenu()) {\n    await handleSelectMenu(interaction);\n  }
+  if (interaction.isChatInputCommand()) {
+    if (interaction.commandName === 'sessions') {
+      await handleSessionsCommand(interaction);
+    } else if (interaction.commandName === 'say') {
+      const member = interaction.member;
+      if (!member.roles.cache.has(SAY_ROLE)) {
+        return interaction.reply({ content: 'You are not permitted to use the say command!', ephemeral: true });
+      }
+      const content = interaction.options.getString('message');
+      await interaction.deferReply({ ephemeral: true });
+      await interaction.channel.send(content);
+      await interaction.editReply({ content: 'Message sent!' });
+    }
+  } else if (interaction.isStringSelectMenu()) {
+    await handleSelectMenu(interaction);
+  }
 });
 
 async function handleSessionsCommand(interaction) {
@@ -340,7 +385,6 @@ async function handleSessionCheck() {
       const modRole = guild.roles.cache.get('1479856722796613733');
       if (modRole && modRole.members.size > 0) {
         const mod = modRole.members.first();
-
         // Simplified: auto shutdown after 10min
         setTimeout(() => shutdownSession('Fallback timeout'), 600000);
       } else {

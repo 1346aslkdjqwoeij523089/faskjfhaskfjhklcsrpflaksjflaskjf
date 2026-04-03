@@ -46,6 +46,7 @@ client.once('ready', async () => {
 });
 
 client.on('messageCreate', async (message) => {
+  console.log(`Message from ${message.author.tag}: "${message.content}" in #${message.channel.name}`);
   if (message.author.bot) return;
 
   if (message.content.startsWith('*say ')) {
@@ -62,6 +63,7 @@ client.on('messageCreate', async (message) => {
     await message.delete();
     await message.channel.send(content);
   } else if (message.content === '*sessions') {
+    console.log('*sessions triggered by', message.author.tag);
     await handleSessionsCommand(message);
   }
 });
@@ -110,13 +112,11 @@ async function handleSessionsCommand(interaction) {
 }
 
 function hasStaffRole(member) {
-  console.log('Checking roles against:', member.roles.cache.map(r => r.id));
-  for (const roleId of STAFF_ROLES) {
-    if (member.roles.cache.has(roleId)) {
-      return true;
-    }
-  }
-  return false;
+  const roleIds = member.roles.cache.map(r => r.id);
+  console.log('User roles:', roleIds, 'Staff roles:', STAFF_ROLES);
+  const hasRole = STAFF_ROLES.some(roleId => roleIds.includes(roleId));
+  console.log('Has staff role:', hasRole);
+  return hasRole;
 }
 
 async function sendInactivePanel(interaction) {
